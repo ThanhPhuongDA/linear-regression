@@ -1,0 +1,144 @@
+# Open the training dataset
+df <- read.csv('train.csv')
+head(df)
+             datetime season holiday workingday weather temp  atemp humidity windspeed
+1 2011-01-01 00:00:00      1       0          0       1 9.84 14.395       81    0.0000
+2 2011-01-01 01:00:00      1       0          0       1 9.02 13.635       80    0.0000
+3 2011-01-01 02:00:00      1       0          0       1 9.02 13.635       80    0.0000
+4 2011-01-01 03:00:00      1       0          0       1 9.84 14.395       75    0.0000
+5 2011-01-01 04:00:00      1       0          0       1 9.84 14.395       75    0.0000
+6 2011-01-01 05:00:00      1       0          0       2 9.84 12.880       75    6.0032
+  casual registered count
+1      3         13    16
+2      8         32    40
+3      5         27    32
+4      3         10    13
+5      0          1     1
+6      0          1     1
+# Check if there are any missing data in the dataset
+any(is.na(df))
+[1] FALSE
+# Check the structure of the dataset
+str(df)
+'data.frame':	10886 obs. of  12 variables:
+ $ datetime  : chr  "2011-01-01 00:00:00" "2011-01-01 01:00:00" "2011-01-01 02:00:00" "2011-01-01 03:00:00" ...
+ $ season    : int  1 1 1 1 1 1 1 1 1 1 ...
+ $ holiday   : int  0 0 0 0 0 0 0 0 0 0 ...
+ $ workingday: int  0 0 0 0 0 0 0 0 0 0 ...
+ $ weather   : int  1 1 1 1 1 2 1 1 1 1 ...
+ $ temp      : num  9.84 9.02 9.02 9.84 9.84 ...
+ $ atemp     : num  14.4 13.6 13.6 14.4 14.4 ...
+ $ humidity  : int  81 80 80 75 75 75 80 86 75 76 ...
+ $ windspeed : num  0 0 0 0 0 ...
+ $ casual    : int  3 8 5 3 0 0 2 1 1 8 ...
+ $ registered: int  13 32 27 10 1 1 0 2 7 6 ...
+ $ count     : int  16 40 32 13 1 1 2 3 8 14 ...
+
+ # Check the correlation of explanatory variables 'temp' and 'count':
+cor(df[, c('temp', 'count')])
+           temp     count
+temp  1.0000000 0.3944536
+count 0.3944536 1.0000000
+
+# Explore the dataset:
+library(ggplot2)
+library(ggthemes)
+ggplot(df,aes(temp,count)) + geom_point(alpha=0.2, aes(color=temp)) + theme_bw()
+# Plot count versus datetime as a scatterplot with a color gradient based on temperature. I must convert the datetime column into POSIXct before plotting.
+df$datetime <- as.POSIXct(df$datetime)
+ggplot(df,aes(datetime,count)) + geom_point(aes(color=temp),alpha=0.5)  + scale_color_continuous(low='#55D8CE',high='#FF6E2E') +theme_bw()
+
+# Relationship between season and the number of bike rentals:
+ggplot(df,aes(factor(season),count)) + geom_boxplot(aes(color=factor(season))) +theme_bw()
+
+ 
+df$hour <- sapply(df$datetime,function(x){format(x,"%H")})
+head(df)
+             datetime season holiday workingday weather temp  atemp humidity windspeed
+1 2011-01-01 00:00:00      1       0          0       1 9.84 14.395       81    0.0000
+2 2011-01-01 01:00:00      1       0          0       1 9.02 13.635       80    0.0000
+3 2011-01-01 02:00:00      1       0          0       1 9.02 13.635       80    0.0000
+4 2011-01-01 03:00:00      1       0          0       1 9.84 14.395       75    0.0000
+5 2011-01-01 04:00:00      1       0          0       1 9.84 14.395       75    0.0000
+6 2011-01-01 05:00:00      1       0          0       2 9.84 12.880       75    6.0032
+  casual registered count hour
+1      3         13    16   00
+2      8         32    40   01
+3      5         27    32   02
+4      3         10    13   03
+5      0          1     1   04
+6      0          1     1   05
+library(dplyr)
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+ 
+pl <- ggplot(filter(df,workingday==1),aes(hour,count)) 
+pl <- pl + geom_point(position=position_jitter(w=1, h=0),aes(color=temp),alpha=0.5)
+pl <- pl + scale_color_gradientn(colours = c('dark blue','blue','light blue','light green','yellow','orange','red'))
+pl + theme_bw()
+pl <- ggplot(filter(df,workingday==0),aes(hour,count)) 
+pl <- pl + geom_point(position=position_jitter(w=1, h=0),aes(color=temp),alpha=0.8)
+pl <- pl + scale_color_gradientn(colours = c('dark blue','blue','light blue','light green','yellow','orange','red'))
+pl + theme_bw()
+temp.model <- lm(count~temp,df)
+ 
+summary(temp.model)
+
+Call:
+lm(formula = count ~ temp, data = df)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-293.32 -112.36  -33.36   78.98  741.44 
+
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)    
+(Intercept)   6.0462     4.4394   1.362    0.173    
+temp          9.1705     0.2048  44.783   <2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 166.5 on 10884 degrees of freedom
+Multiple R-squared:  0.1556,	Adjusted R-squared:  0.1555 
+F-statistic:  2006 on 1 and 10884 DF,  p-value: < 2.2e-16
+
+df$hour <- sapply(df$hour,as.numeric)
+model <- lm(count ~ . -casual - registered -datetime -atemp,df)
+ 
+summary(model)
+Call:
+lm(formula = count ~ . - casual - registered - datetime - atemp, 
+    data = df)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-324.61  -96.88  -31.01   55.27  688.83 
+
+Coefficients:
+             Estimate Std. Error t value Pr(>|t|)    
+(Intercept)  46.91369    8.45147   5.551 2.91e-08 ***
+season       21.70333    1.35409  16.028  < 2e-16 ***
+holiday     -10.29914    8.79069  -1.172    0.241    
+workingday   -0.71781    3.14463  -0.228    0.819    
+weather      -3.20909    2.49731  -1.285    0.199    
+temp          7.01953    0.19135  36.684  < 2e-16 ***
+humidity     -2.21174    0.09083 -24.349  < 2e-16 ***
+windspeed     0.20271    0.18639   1.088    0.277    
+hour          7.61283    0.21688  35.102  < 2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 147.8 on 10877 degrees of freedom
+Multiple R-squared:  0.3344,	Adjusted R-squared:  0.3339 
+F-statistic:   683 on 8 and 10877 DF,  p-value: < 2.2e-16
+
+Count = 46.91 + 21.7* Season + 7.01 * temp - 22.21 * humidity + 7.61 * hour
